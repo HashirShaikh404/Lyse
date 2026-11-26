@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { validateRange } from '../utils/dateUtils.js'
 
-const STORAGE_KEY = 'lyse-reporting-filters'
+import { useEffect, useState } from 'react'
+import { shiftDate, validateRange } from '../utils/dateUtils.js'
+
+const STORAGE_KEY = 'lyse-retail-filters'
 
 function readFilters() {
   try {
@@ -13,7 +14,8 @@ function readFilters() {
 
 export function useSavedFilters(bounds) {
   const [saved, setSaved] = useState(readFilters)
-  const period = bounds && (saved && !validateRange(saved, bounds) ? saved : bounds)
+  const defaults = bounds && { start: [bounds.start, shiftDate(bounds.end, -59)].sort().at(-1), end: bounds.end, market: '' }
+  const period = bounds && (saved && !validateRange(saved, bounds) ? { ...saved, market: typeof saved.market === 'string' ? saved.market : '' } : defaults)
 
   useEffect(() => {
     try {
@@ -24,5 +26,5 @@ export function useSavedFilters(bounds) {
     }
   }, [saved])
 
-  return { period, apply: setSaved, reset: () => setSaved(null) }
+  return { period, defaults, apply: setSaved, reset: () => setSaved(null) }
 }

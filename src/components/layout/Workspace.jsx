@@ -3,10 +3,10 @@ import { BarChart3, CalendarDays, ChevronRight, ClipboardList, Database, Downloa
 import { formatPeriod } from '../../utils/dateUtils.js'
 
 export const pages = [
-  { id: 'overview', name: 'Overview', icon: LayoutDashboard, title: 'Executive Overview', description: 'Track revenue, orders, and customer activity across your reporting period.' },
-  { id: 'sales', name: 'Sales Analytics', icon: BarChart3, title: 'Sales Analytics', description: 'Explore monthly sales trends, product categories, and customer markets.' },
-  { id: 'reports', name: 'Performance Reports', icon: ClipboardList, title: 'Performance Reports', description: 'Review your leading products, customers, and sales employees.' },
-  { id: 'orders', name: 'Orders', icon: Table2, title: 'Orders', description: 'Search, sort, and export individual orders for your reporting period.' },
+  { id: 'overview', name: 'Overview', icon: LayoutDashboard, title: 'Executive Overview', description: 'Track sales, invoices, and customer activity across your reporting period.' },
+  { id: 'sales', name: 'Sales Analytics', icon: BarChart3, title: 'Sales Analytics', description: 'Explore sales trends, invoice activity, and customer markets.' },
+  { id: 'reports', name: 'Performance Reports', icon: ClipboardList, title: 'Performance Reports', description: 'Review product performance, customer accounts, and credits by market.' },
+  { id: 'invoices', name: 'Invoices', icon: Table2, title: 'Invoice Detail', description: 'Search, sort, and export invoices for your reporting period.' },
 ]
 
 export default function Workspace({ page, period, bounds, onExport, children }) {
@@ -63,7 +63,7 @@ export default function Workspace({ page, period, bounds, onExport, children }) 
         </nav>
         <div className="sidebar-source">
           <div className="source-icon"><Database size={17} aria-hidden="true" /></div>
-          <div><strong>Northwind</strong><span>Historical sample data</span></div>
+          <div><strong>UK Retail</strong><span>Historical transactions</span></div>
         </div>
       </aside>
       <div className="work-area" inert={menuOpen || undefined}>
@@ -83,7 +83,7 @@ export default function Workspace({ page, period, bounds, onExport, children }) 
             <div className="dataset-heading"><span className="data-badge"><Database size={14} aria-hidden="true" /> Historical dataset</span>{bounds && <small>{formatPeriod(bounds)}</small>}</div>
           </header>
           {children}
-          <footer className="footer"><span>Lyse <span aria-hidden="true">·</span> Sales Intelligence</span><span>Historical Northwind reporting</span></footer>
+          <footer className="footer"><span>Lyse <span aria-hidden="true">·</span> Sales Intelligence</span><a href="https://archive.ics.uci.edu/dataset/502/online+retail+ii" target="_blank" rel="noreferrer">UCI Online Retail II</a></footer>
         </main>
       </div>
     </div>

@@ -1,33 +1,42 @@
-import { useEffect, useState } from 'react'
-import { clearNorthwindCache, getNorthwindData } from '../services/analyticsService.js'
-import { prepareOrders } from '../utils/analyticsCalculations.js'
 
-export function useSalesAnalytics() {
-  const [request, setRequest] = useState({ source: 'api' })
+import { useEffect, useState } from 'react'
+import { getRetailDataset, getRetailRows } from '../services/analyticsService.js'
+import { prepareRetailData } from '../utils/analyticsCalculations.js'
+
+export function useRetailDataset() {
+  const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState(null)
 
   useEffect(() => {
     let active = true
-    getNorthwindData(request.source)
-      .then(data => {
-        if (!active) return
-        try {
-          const orders = prepareOrders(data)
-          setResult({ request, status: 'success', orders })
-        } catch (error) {
-          if (request.source === 'api') clearNorthwindCache()
-          throw error
-        }
+    getRetailDataset()
+      .then(dataset => { if (active) setResult({ dataset, attempt }) })
+      .catch(error => { if (active) setResult({ error: error.message, attempt }) })
+    return () => { active = false }
+  }, [attempt])
+
+  return { ...(result?.attempt === attempt ? result : null), retry: () => setAttempt(attempt + 1) }
+}
+
+export function useSalesAnalytics(dataset, period) {
+  const [attempt, setAttempt] = useState(0)
+  const [result, setResult] = useState(null)
+  const start = period?.start
+  const end = period?.end
+
+  useEffect(() => {
+    if (!dataset || !start || !end) return
+    let active = true
+    getRetailRows(dataset, start, end)
+      .then(({ rows, previousPeriod }) => {
+        if (active) setResult({ dataset, start, end, attempt, data: prepareRetailData(rows, { start, end }, previousPeriod) })
       })
       .catch(error => {
-        if (active) setResult({ request, status: 'error', error: error.message })
+        if (active) setResult({ dataset, start, end, attempt, error: error.message })
       })
     return () => { active = false }
-  }, [request])
+  }, [dataset, start, end, attempt])
 
-  const current = result?.request === request ? result : { status: 'loading' }
-  const orders = current.orders ?? []
-  const bounds = orders.length ? { start: orders[0].date, end: orders.at(-1).date } : null
-
-  return { ...current, orders, bounds, source: request.source, load: source => setRequest({ source }) }
+  const current = result?.dataset === dataset && result?.start === start && result?.end === end && result?.attempt === attempt ? result : null
+  return { ...current, retry: () => setAttempt(attempt + 1) }
 }

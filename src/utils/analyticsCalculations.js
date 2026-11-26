@@ -1,103 +1,132 @@
-export function prepareOrders({ orders, details, products }) {
-  const productsById = new Map(products.map(product => [product.ProductID, product]))
-  const linesByOrder = new Map()
-  const seenLines = new Set()
 
-  for (const line of details) {
-    const key = `${line.OrderID}:${line.ProductID}`
-    if (seenLines.has(key)) continue
-    seenLines.add(key)
-    const product = productsById.get(line.ProductID)
-    const orderLines = linesByOrder.get(line.OrderID) ?? []
-    orderLines.push({
-      productId: line.ProductID,
-      name: product?.ProductName ?? `Product ${line.ProductID}`,
-      category: product?.Category?.CategoryName ?? 'Uncategorized',
-      units: line.Quantity,
-      revenue: line.UnitPrice * line.Quantity * (1 - line.Discount),
-    })
-    linesByOrder.set(line.OrderID, orderLines)
-  }
-
-  const uniqueOrders = new Map(orders.map(order => [order.OrderID, order]))
-  return [...uniqueOrders.values()].map(order => {
-    const lines = linesByOrder.get(order.OrderID)
-    if (!lines) throw new Error(`Northwind returned no line items for order ${order.OrderID}. Please try again.`)
-    return {
-      id: order.OrderID,
-      date: new Date(order.OrderDate).toISOString().slice(0, 10),
-      customerId: order.CustomerID,
-      customer: order.Customer?.CompanyName ?? order.CustomerID ?? 'Unknown customer',
-      employeeId: order.EmployeeID,
-      employee: order.Employee ? `${order.Employee.FirstName} ${order.Employee.LastName}` : 'Unassigned',
-      country: order.Customer?.Country ?? 'Unknown country',
-      revenue: lines.reduce((sum, line) => sum + line.revenue, 0),
-      lines,
-    }
-  }).sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id)
-}
+import { shiftDate } from './dateUtils.js'
 
 function getGroup(groups, key, initial) {
   if (!groups.has(key)) groups.set(key, initial)
   return groups.get(key)
 }
 
-const rankByRevenue = groups => [...groups.values()].sort((a, b) => b.revenue - a.revenue || a.name.localeCompare(b.name))
+function prepareInvoices(rows, period, previousPeriod) {
+  const current = new Map()
+  const previous = new Map()
 
-export function calculateAnalytics(orders, { start, end }) {
-  const filteredOrders = orders.filter(order => order.date >= start && order.date <= end)
-  const months = new Map()
-  const categories = new Map()
+  for (const row of rows) {
+    const date = row.InvoiceDate?.slice(0, 10)
+    const id = row.Invoice
+    const quantity = Number(row.Quantity)
+    if (!id || !date || typeof row.Price !== 'number' || !Number.isFinite(row.Price) || !Number.isSafeInteger(quantity)) {
+      throw new Error('The retail data contains an invalid invoice line.')
+    }
+    const inPeriod = date >= period.start && date <= period.end
+    const inPrevious = previousPeriod && date >= previousPeriod.start && date <= previousPeriod.end
+    if (!inPeriod && !inPrevious) continue
+
+    const amount = row.Price * quantity
+    const pence = Math.sign(amount) * Math.round(Math.abs(amount) * 100)
+    const groups = inPeriod ? current : previous
+    const invoice = getGroup(groups, id, {
+      id, date, customerId: row['Customer ID'], country: row.Country?.trim() || 'Unknown market', pence: 0, lines: [],
+    })
+    invoice.pence += pence
+    if (inPeriod) invoice.lines.push({ code: row.StockCode, name: row.Description?.trim(), pence, quantity })
+  }
+
+  const finish = groups => [...groups.values()].map(invoice => {
+    const type = /^C/i.test(invoice.id) || invoice.pence < 0 ? 'Credit / cancellation' : invoice.pence > 0 ? 'Sale' : 'Other'
+    return { ...invoice, type, revenue: invoice.pence / 100, customer: invoice.customerId == null ? 'Unidentified' : String(invoice.customerId) }
+  })
+
+  return { current: finish(current), previous: finish(previous) }
+}
+
+export function prepareRetailData(rows, period, previousPeriod) {
+  const { current, previous } = prepareInvoices(rows, period, previousPeriod)
+  const markets = [...new Set([...current, ...previous].map(invoice => invoice.country))].sort()
+  return { current, previous, previousPeriod, markets }
+}
+
+function metricsFor(invoices) {
+  let net = 0
+  let sales = 0
+  let count = 0
+  const customers = new Set()
+  for (const invoice of invoices) {
+    net += invoice.pence
+    if (invoice.type === 'Sale') {
+      sales += invoice.pence
+      count += 1
+      if (invoice.customerId != null) customers.add(invoice.customerId)
+    }
+  }
+  return { revenue: net / 100, orderCount: count, customerCount: customers.size, averageOrderValue: count ? sales / count / 100 : 0 }
+}
+
+function reportingBuckets({ start, end }) {
+  const days = (Date.parse(end) - Date.parse(start)) / 86400000 + 1
+  const scale = days > 112 ? 'month' : days > 31 ? 'week' : 'day'
+  const buckets = new Map()
+  const byDay = new Map()
+  for (let index = 0, date = start; date <= end; date = shiftDate(date, 1), index += 1) {
+    const key = scale === 'month' ? date.slice(0, 7) : scale === 'week' ? shiftDate(start, index - index % 7) : date
+    byDay.set(date, key)
+    if (!buckets.has(key)) buckets.set(key, { date: key, orders: 0, pence: 0 })
+  }
+  return { scale, buckets, byDay }
+}
+
+const rank = groups => [...groups.values()].sort((a, b) => b.pence - a.pence || a.name.localeCompare(b.name))
+  .map(row => ({ ...row, revenue: row.pence / 100 }))
+
+export function calculateAnalytics(data, period) {
+  const market = invoice => !period.market || invoice.country === period.market
+  const invoices = data.current.filter(market)
+  const previous = data.previous.filter(market)
+  const { scale, buckets, byDay } = reportingBuckets(period)
   const countries = new Map()
   const products = new Map()
   const customers = new Map()
-  const employees = new Map()
-  let revenue = 0
+  const credits = new Map()
+  const counts = new Map()
 
-  // Include months with no orders so the charts retain the full reporting period.
-  const monthDate = new Date(`${start.slice(0, 7)}-01`)
-  while (monthDate.toISOString().slice(0, 10) <= end) {
-    const month = monthDate.toISOString().slice(0, 7)
-    months.set(month, { month, orders: 0, revenue: 0 })
-    monthDate.setUTCMonth(monthDate.getUTCMonth() + 1)
-  }
+  for (const invoice of invoices) {
+    const bucket = buckets.get(byDay.get(invoice.date))
+    const isSale = invoice.type === 'Sale'
+    bucket.pence += invoice.pence
+    if (isSale) bucket.orders += 1
+    counts.set(invoice.type, (counts.get(invoice.type) ?? 0) + 1)
+    getGroup(countries, invoice.country, { name: invoice.country, pence: 0 }).pence += invoice.pence
 
-  for (const order of filteredOrders) {
-    revenue += order.revenue
-    const month = months.get(order.date.slice(0, 7))
-    month.orders += 1
-    month.revenue += order.revenue
-    getGroup(countries, order.country, { name: order.country, revenue: 0 }).revenue += order.revenue
-
-    if (order.customerId != null) {
-      const customer = getGroup(customers, order.customerId, {
-        id: order.customerId, name: order.customer, country: order.country, orders: 0, revenue: 0,
+    if (invoice.customerId != null) {
+      const customer = getGroup(customers, invoice.customerId, {
+        id: invoice.customerId, name: `Customer ${invoice.customerId}`, country: invoice.country, orders: 0, pence: 0,
       })
-      customer.orders += 1
-      customer.revenue += order.revenue
+      if (customer.country !== invoice.country) customer.country = 'Multiple markets'
+      if (isSale) customer.orders += 1
+      customer.pence += invoice.pence
     }
 
-    const employee = getGroup(employees, order.employeeId, {
-      id: order.employeeId, name: order.employee, orders: 0, revenue: 0,
-    })
-    employee.orders += 1
-    employee.revenue += order.revenue
+    if (invoice.type === 'Credit / cancellation') {
+      const credit = getGroup(credits, invoice.country, { id: invoice.country, name: invoice.country, count: 0, pence: 0 })
+      credit.count += 1
+      credit.pence -= invoice.pence
+    }
 
-    for (const line of order.lines) {
-      getGroup(categories, line.category, { name: line.category, revenue: 0 }).revenue += line.revenue
-      const product = getGroup(products, line.productId, {
-        id: line.productId, name: line.name, category: line.category, units: 0, revenue: 0,
-      })
-      product.units += line.units
-      product.revenue += line.revenue
+    for (const line of invoice.lines) {
+      // UK Online Retail uses five-digit product codes, with suffixes for some variants.
+      if (!/^\d{5}[A-Z]*$/i.test(line.code) || !line.name || line.pence === 0) continue
+      const product = getGroup(products, line.code, { id: line.code, name: line.name, units: 0, pence: 0 })
+      product.units += line.quantity
+      product.pence += line.pence
     }
   }
 
   return {
-    filteredOrders, revenue, orderCount: filteredOrders.length, customerCount: customers.size,
-    averageOrderValue: filteredOrders.length ? revenue / filteredOrders.length : 0,
-    monthly: [...months.values()], categories: rankByRevenue(categories), countries: rankByRevenue(countries),
-    products: [...products.values()].sort((a, b) => b.units - a.units || b.revenue - a.revenue || a.name.localeCompare(b.name)),
-    customers: rankByRevenue(customers), employees: rankByRevenue(employees),
+    ...metricsFor(invoices),
+    previous: data.previousPeriod && metricsFor(previous),
+    previousPeriod: data.previousPeriod,
+    invoices, scale,
+    timeline: [...buckets.values()].map(bucket => ({ ...bucket, revenue: bucket.pence / 100 })),
+    invoiceMix: [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+    countries: rank(countries), products: rank(products), customers: rank(customers), credits: rank(credits),
   }
 }

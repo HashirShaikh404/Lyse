@@ -1,11 +1,13 @@
+
 import { useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { formatMonth } from '../../utils/dateUtils.js'
-import { formatAmount, formatCompact, formatNumber, formatPercent } from '../../utils/formatters.js'
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { formatDate, formatMonth, formatShortDate } from '../../utils/dateUtils.js'
+import { formatAmount, formatCompact, formatCompactAmount, formatNumber, formatPercent } from '../../utils/formatters.js'
 
 const blue = '#2855d9'
-const orderBlue = '#6b91ed'
-const palette = ['#2855d9', '#4f76e2', '#81a2f0', '#244180', '#66758d', '#19a298', '#9c6bd6', '#bd791c', '#859fbf']
+const orderBlue = '#6087e8'
+const creditColor = '#ad6726'
+const mixColors = { Sale: blue, 'Credit / cancellation': creditColor, Other: '#687a97' }
 const tick = { fill: '#53647b', fontSize: 12 }
 const tooltip = { contentStyle: { border: '1px solid #dae2ee', borderRadius: 8, fontSize: 13 }, labelStyle: { color: '#17243c', fontWeight: 650 } }
 
@@ -20,79 +22,85 @@ function ChartKey({ label, color }) {
   return <span className="chart-key"><i style={{ backgroundColor: color }} aria-hidden="true" />{label}</span>
 }
 
-function MonthlyChart({ data, measure }) {
-  const isRevenue = measure === 'revenue'
-  const title = isRevenue ? 'Revenue over time' : 'Orders over time'
-  const label = isRevenue ? 'Revenue' : 'Orders'
-  const color = isRevenue ? blue : orderBlue
-  const Chart = isRevenue ? LineChart : BarChart
+function TrendChart({ data, scale, measure }) {
+  const revenue = measure === 'revenue'
+  const title = revenue ? 'Net sales trend' : 'Invoice volume'
+  const label = revenue ? 'Net sales' : 'Sales invoices'
+  const color = revenue ? blue : orderBlue
+  const Chart = revenue ? LineChart : BarChart
+  const interval = { day: 'Daily', week: 'Weekly', month: 'Monthly' }[scale]
+  const shortLabel = scale === 'month' ? formatMonth : formatShortDate
+  const tooltipLabel = date => scale === 'month' ? formatMonth(date) : scale === 'week' ? `Week starting ${formatDate(date)}` : formatDate(date)
 
-  return <ChartCard title={title} description={isRevenue ? 'Monthly revenue after discounts' : 'Unique orders by month'} legend={<ChartKey label={label} color={color} />}>
+  return <ChartCard title={title} description={revenue ? `${interval} sales after credits` : `${interval} sales invoice count`} legend={<ChartKey label={label} color={color} />}>
     <div className="trend-chart">
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-        <Chart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }} accessibilityLayer aria-label={title}>
+        <Chart data={data} margin={{ top: 12, right: 16, bottom: 0, left: 0 }} accessibilityLayer aria-label={title}>
           <CartesianGrid vertical={false} stroke="#e4eaf3" strokeDasharray="4 4" />
-          <XAxis dataKey="month" tickFormatter={formatMonth} tick={tick} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={20} tickMargin={10} />
-          <YAxis width={47} tickFormatter={formatCompact} tick={tick} axisLine={false} tickLine={false} allowDecimals={isRevenue} />
-          <Tooltip {...tooltip} labelFormatter={formatMonth} formatter={value => [isRevenue ? formatAmount(value) : formatNumber(value), label]} />
-          {isRevenue
+          <XAxis dataKey="date" tickFormatter={shortLabel} tick={tick} axisLine={false} tickLine={false} interval="preserveStartEnd" minTickGap={18} tickMargin={10} />
+          <YAxis width={62} tickFormatter={revenue ? formatCompactAmount : formatCompact} tick={tick} axisLine={false} tickLine={false} allowDecimals={revenue} />
+          <Tooltip {...tooltip} labelFormatter={tooltipLabel} formatter={value => [revenue ? formatAmount(value) : formatNumber(value), label]} />
+          {revenue
             ? <Line type="linear" name={label} dataKey={measure} stroke={color} strokeWidth={2.5} dot={data.length === 1} activeDot={{ r: 5 }} isAnimationActive={false} />
-            : <Bar name={label} dataKey={measure} fill={color} maxBarSize={23} radius={[3, 3, 0, 0]} isAnimationActive={false} />}
+            : <Bar name={label} dataKey={measure} fill={color} maxBarSize={28} radius={[3, 3, 0, 0]} isAnimationActive={false} />}
         </Chart>
       </ResponsiveContainer>
     </div>
   </ChartCard>
 }
 
-function CategoryChart({ categories, revenue }) {
-  return <ChartCard title="Revenue by product category" description="Category share of total net revenue">
+function InvoiceMixChart({ mix, total }) {
+  return <ChartCard title="Invoice mix" description="Sales, credit notes, and zero-value invoices">
     <div className="category-layout">
       <div className="donut-chart">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <PieChart accessibilityLayer aria-label="Revenue share by product category">
-            <Pie data={categories} dataKey="revenue" nameKey="name" innerRadius="65%" outerRadius="95%" stroke="#fff" strokeWidth={2} isAnimationActive={false}>
-              {categories.map((category, index) => <Cell key={category.name} fill={palette[index % palette.length]} />)}
+          <PieChart accessibilityLayer aria-label="Breakdown of invoices by type">
+            <Pie data={mix} dataKey="count" nameKey="name" innerRadius="65%" outerRadius="95%" stroke="#fff" strokeWidth={2} isAnimationActive={false}>
+              {mix.map(item => <Cell key={item.name} fill={mixColors[item.name]} />)}
             </Pie>
-            <Tooltip {...tooltip} formatter={(value, name) => [`${formatAmount(value)} (${formatPercent(revenue ? value / revenue : 0)})`, name]} />
+            <Tooltip {...tooltip} formatter={(value, name) => [`${formatNumber(value)} (${formatPercent(value / total)})`, name]} />
           </PieChart>
         </ResponsiveContainer>
-        <div className="donut-center" aria-hidden="true"><strong>{formatCompact(revenue)}</strong><span>Net revenue</span></div>
+        <div className="donut-center" aria-hidden="true"><strong>{formatCompact(total)}</strong><span>Invoices</span></div>
       </div>
-      <ul className="category-legend" aria-label="Category shares">
-        {categories.map((category, index) => <li key={category.name}><ChartKey label={category.name} color={palette[index % palette.length]} /><strong>{formatPercent(revenue ? category.revenue / revenue : 0)}</strong></li>)}
+      <ul className="category-legend" aria-label="Invoice shares">
+        {mix.map(item => <li key={item.name}><ChartKey label={item.name} color={mixColors[item.name]} /><strong>{formatPercent(item.count / total)}</strong></li>)}
       </ul>
     </div>
   </ChartCard>
 }
 
-function CountryChart({ countries }) {
-  // A fixed number of rows keeps the chart readable while exposing the full ranking.
+function MarketChart({ countries }) {
   const [expanded, setExpanded] = useState(false)
   const visible = expanded ? countries.length : Math.min(7, countries.length)
-  return <ChartCard title="Sales by country" description={`Customer markets ranked by net revenue · ${countries.length} total`}>
-    <div className="country-chart" style={{ height: Math.max(220, visible * 29 + 32) }}>
+  const values = countries.slice(0, visible)
+  return <ChartCard title="Sales by market" description={`Customer markets ranked by net sales · ${countries.length} total`}>
+    <div className="country-chart" style={{ height: Math.max(165, visible * 30 + 40) }}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-        <BarChart data={countries.slice(0, visible)} layout="vertical" margin={{ top: 5, right: 14, bottom: 0, left: 0 }} accessibilityLayer aria-label="Revenue ranked by customer country">
+        <BarChart data={values} layout="vertical" margin={{ top: 5, right: 18, bottom: 0, left: 0 }} accessibilityLayer aria-label="Net sales ranked by customer market">
           <CartesianGrid horizontal={false} stroke="#e4eaf3" strokeDasharray="4 4" />
-          <XAxis type="number" tickFormatter={formatCompact} tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
-          <YAxis type="category" dataKey="name" width={103} tick={tick} axisLine={false} tickLine={false} interval={0} />
-          <Tooltip {...tooltip} formatter={value => [formatAmount(value), 'Revenue']} />
-          <Bar dataKey="revenue" name="Revenue" fill={blue} barSize={13} radius={[0, 3, 3, 0]} isAnimationActive={false} />
+          <XAxis type="number" tickFormatter={formatCompactAmount} tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
+          <YAxis type="category" dataKey="name" width={112} tick={tick} axisLine={false} tickLine={false} interval={0} />
+          <ReferenceLine x={0} stroke="#c7d2e2" />
+          <Tooltip {...tooltip} formatter={value => [formatAmount(value), 'Net sales']} />
+          <Bar dataKey="revenue" name="Net sales" barSize={14} radius={2} isAnimationActive={false}>
+            {values.map(item => <Cell key={item.name} fill={item.revenue < 0 ? creditColor : blue} />)}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
-    {countries.length > 7 && <button type="button" className="text-button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Show top 7 countries' : `Show all ${countries.length} countries`}</button>}
+    {countries.length > 7 && <button type="button" className="text-button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Show top 7 markets' : `Show all ${countries.length} markets`}</button>}
   </ChartCard>
 }
 
 export default function SalesCharts({ analytics, showHeading = true }) {
   return <section className="dashboard-section" aria-label="Sales analytics">
-    {showHeading && <div className="section-heading"><h2>Sales analytics</h2><span>Revenue in source units</span></div>}
+    {showHeading && <div className="section-heading"><h2>Sales analytics</h2><span>All amounts in GBP</span></div>}
     <div className="chart-grid">
-      <MonthlyChart data={analytics.monthly} measure="revenue" />
-      <MonthlyChart data={analytics.monthly} measure="orders" />
-      <CategoryChart categories={analytics.categories} revenue={analytics.revenue} />
-      <CountryChart countries={analytics.countries} />
+      <TrendChart data={analytics.timeline} scale={analytics.scale} measure="revenue" />
+      <TrendChart data={analytics.timeline} scale={analytics.scale} measure="orders" />
+      <InvoiceMixChart mix={analytics.invoiceMix} total={analytics.invoices.length} />
+      <MarketChart countries={analytics.countries} />
     </div>
   </section>
 }

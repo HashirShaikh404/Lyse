@@ -1,6 +1,9 @@
+
 # Lyse
 
-Lyse is a React and Vite sales reporting workspace for the historical Northwind sample dataset.
+Lyse is a corporate sales analytics and reporting workspace built with React, Vite, and Recharts. It lets a sales manager review performance, drill into invoices, and export the selected period.
+
+## Run locally
 
 Use Node.js 20.19+ on the 20.x release line or Node.js 22.12+.
 
@@ -10,19 +13,25 @@ npm run dev
 npm run build
 ```
 
-Open the local URL printed by Vite. `npm run build` creates the production site in `dist/`.
+Open the URL printed by Vite. The production build is written to `dist/`.
 
-## Data sources
+## Data source
 
-Lyse’s default source is [Northwind OData V4](https://services.odata.org/V4/Northwind/Northwind.svc/). It reads dated orders with their customer and employee relationships, discounted line items from `Order_Details`, and products with their categories. The service follows `@odata.nextLink` and keeps successful collections in memory for the current session. Applying date filters uses the records already retrieved.
-
-If OData is unavailable, the dashboard shows the error and offers **Retry API** or **Use sample archive**. The optional archive contains reporting fields extracted from [Microsoft’s Northwind SQL sample](https://github.com/microsoft/sql-server-samples/blob/master/samples/databases/northwind-pubs/instnwnd.sql). It has 830 orders, 2,155 line items, and 77 products. The archive dates run from July 4, 1996 through May 6, 1998. The archive and OData source can differ in individual fields.
+Lyse uses real historical invoices from a UK online retailer, dated 1 December 2009 through 9 December 2011. Data is credited to Daqing Chen, *Online Retail II* (2012), [UCI Machine Learning Repository](https://doi.org/10.24432/C5CG6D), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The [public Hugging Face dataset](https://huggingface.co/datasets/attik/Online-Retail-II-UCI) serves a Parquet copy. Lyse reads its metadata and selected byte ranges at runtime using Fetch. The date range displayed in the app comes from that metadata.
 
 ## Reporting logic
 
-- `src/services/analyticsService.js` fetches and validates the data.
-- `src/utils/analyticsCalculations.js` joins line items to orders and calculates each line as `UnitPrice × Quantity × (1 − Discount)`. Revenue excludes freight and uses neutral number formatting because the source provides no currency code.
-- `src/hooks/useSavedFilters.js` restores the applied date range on refresh. **Reset Filters** clears it and restores the full available range.
-- **Export CSV** includes every order in the applied dates. The Orders search, sort order, and current page control the table view.
+- **Net sales** sum price × quantity from each invoice line, including signed credits and adjustments. Values are reported in GBP.
+- **Sales invoices** count distinct positive invoices outside the credit series. **Average invoice value** uses the sales invoice total before separate credit notes. **Active customers** count identified customers with at least one sales invoice.
+- Credit notes and cancellations include invoices prefixed with `C` and other negative-value invoices. Zero-value invoices stay visible in the invoice mix and details.
+- Customer and sales charts use the applied date and market filters. Comparisons use the immediately preceding period of the same length when it is covered by the dataset and the prior metric is positive.
+- The product report ranks catalogue stock codes by net sales. The invoice CSV includes every matching invoice for the applied date range and market. Table search and pagination change the screen view.
+
+## Code structure
+
+- `src/services/analyticsService.js` discovers the dataset and reuses downloaded byte ranges. Parquet row-group date ranges keep each query focused on the selected dates and the comparison period.
+- `src/hooks/useSalesAnalytics.js` handles loading, errors, retries, and prepared invoices. `useSavedFilters.js` stores the applied dates and market in localStorage.
+- `src/utils/analyticsCalculations.js` groups line items by invoice and calculates KPIs, chart series, and rankings. The dashboard memoizes those results by reporting period and market.
+- `src/components/` contains the reusable layout, filter, chart, report, and invoice table components.
 
 Lyse uses Recharts 2.15.4 to keep Redux out of the dependency tree. This Recharts release supports React 19 and belongs to the inactive 2.x series.

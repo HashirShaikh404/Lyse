@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { formatAmount, formatNumber } from '../../utils/formatters.js'
 
 const reports = [
-  { key: 'products', label: 'Top-selling products', description: 'Ranked by units sold', columns: [['name', 'Product'], ['category', 'Category'], ['units', 'Units sold'], ['revenue', 'Net revenue']] },
-  { key: 'customers', label: 'Top customers', description: 'Ranked by net revenue', columns: [['name', 'Customer'], ['country', 'Country'], ['orders', 'Orders'], ['revenue', 'Net revenue']] },
-  { key: 'employees', label: 'Employee performance', description: 'Ranked by net revenue', columns: [['name', 'Employee'], ['orders', 'Orders handled'], ['revenue', 'Net revenue']] },
+  { key: 'products', label: 'Top products', description: 'Catalogue items ranked by net sales', columns: [['name', 'Product'], ['id', 'Stock code'], ['units', 'Net units'], ['revenue', 'Net sales']] },
+  { key: 'customers', label: 'Top customers', description: 'Identified customer accounts ranked by net sales', columns: [['name', 'Customer'], ['country', 'Market'], ['orders', 'Sales invoices'], ['revenue', 'Net sales']] },
+  { key: 'credits', label: 'Credits and cancellations', description: 'Credit notes ranked by total credit value', columns: [['name', 'Market'], ['count', 'Credit invoices'], ['revenue', 'Credit value']] },
 ]
 
 export default function PerformanceReports({ analytics, showHeading = true }) {
@@ -23,10 +23,10 @@ export default function PerformanceReports({ analytics, showHeading = true }) {
         }}>{item.label}</button>)}
       </div>
       <div className="report-summary"><span>{report.description}</span><span>{formatNumber(rows.length)} ranked</span></div>
-      {rows.length === 0 ? <p className="table-empty">No identified {report.key} in this period.</p> : <div className="table-scroll" tabIndex={0} role="region" aria-label={report.label}>
+      {rows.length === 0 ? <p className="table-empty">No {report.key} to report in this period.</p> : <div className="table-scroll" tabIndex={0} role="region" aria-label={report.label}>
         <table>
           <caption className="sr-only">{report.label}. {report.description}.</caption>
-          <thead><tr><th className="rank-cell" scope="col">Rank</th>{report.columns.map(([key, label]) => <th key={key} scope="col" className={['units', 'orders', 'revenue'].includes(key) ? 'numeric' : undefined}>{label}</th>)}</tr></thead>
+          <thead><tr><th className="rank-cell" scope="col">Rank</th>{report.columns.map(([key, label]) => <th key={key} scope="col" className={['units', 'orders', 'count', 'revenue'].includes(key) ? 'numeric' : undefined}>{label}</th>)}</tr></thead>
           <tbody>{visible.map((row, index) => <tr key={row.id ?? 'unassigned'}>
             <td className="rank-cell">{index + 1}</td>
             {report.columns.map(([key]) => key === 'name'
