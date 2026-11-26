@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BarChart3, CalendarDays, ChevronRight, ClipboardList, Database, Download, LayoutDashboard, Menu, Table2, X } from 'lucide-react'
+import { BarChart3, CalendarDays, ChevronRight, ClipboardList, Download, LayoutDashboard, Menu, Table2, X } from 'lucide-react'
 import { formatPeriod } from '../../utils/dateUtils.js'
 
 export const pages = [
@@ -76,7 +76,6 @@ export default function Workspace({ page, period, bounds, onExport, children }) 
         <main id="main-content" tabIndex={-1}>
           <header className="page-heading">
             <div><h1>{page.title}</h1><p>{page.description}</p></div>
-            <div className="dataset-heading"><span className="data-badge"><Database size={14} aria-hidden="true" /> Historical dataset</span>{bounds && <small>{formatPeriod(bounds)}</small>}</div>
           </header>
           {children}
           <footer className="footer"><span>Lyse <span aria-hidden="true">·</span> Sales Intelligence</span><a href="https://archive.ics.uci.edu/dataset/502/online+retail+ii" target="_blank" rel="noreferrer">UCI Online Retail II</a></footer>
