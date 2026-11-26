@@ -15,6 +15,12 @@ export const formatMonth = month => monthFormat.format(new Date(`${month}-01`))
 export const formatPeriod = ({ start, end }) => `${formatDate(start)} – ${formatDate(end)}`
 export const shiftDate = (date, days) => new Date(Date.parse(date) + days * 86400000).toISOString().slice(0, 10)
 
+export function getPreviousPeriod({ start, end }, bounds) {
+  const days = (Date.parse(end) - Date.parse(start)) / 86400000 + 1
+  const previousStart = shiftDate(start, -days)
+  return previousStart >= bounds.start ? { start: previousStart, end: shiftDate(start, -1) } : null
+}
+
 export function validateRange(period, bounds) {
   const { start, end } = period ?? {}
   const validDate = date => typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) &&

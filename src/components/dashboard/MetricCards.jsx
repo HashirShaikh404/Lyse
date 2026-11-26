@@ -10,17 +10,17 @@ const cards = [
   { title: 'Active Customers', key: 'customerCount', icon: UsersRound, format: formatNumber, note: 'Identified customers with a sale' },
 ]
 
-export default function MetricCards({ analytics, loading }) {
+export default function MetricCards({ analytics, loading, previous, previousPeriod }) {
   return (
     <section className="metric-grid" aria-label="Executive metrics" aria-busy={loading}>
       {cards.map(({ title, key, icon: Icon, format, note }) => {
-        const prior = analytics?.previous?.[key]
+        const prior = previous?.[key]
         const change = prior > 0 ? (analytics[key] - prior) / prior : null
         return <article className="panel metric" key={key}>
           <div className="metric-header"><h2>{title}</h2><span className="icon-tile"><Icon size={18} aria-hidden="true" /></span></div>
           <div className="metric-number">{loading ? <span className="skeleton metric-skeleton" /> : analytics ? format(analytics[key]) : '—'}</div>
           <p>{note}</p>
-          {change != null && <p className="metric-comparison" title={formatPeriod(analytics.previousPeriod)}><strong>{formatChange(change)}</strong> vs prior period</p>}
+          {change != null && <p className="metric-comparison" title={formatPeriod(previousPeriod)}><strong>{formatChange(change)}</strong> vs prior period</p>}
         </article>
       })}
     </section>

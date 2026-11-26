@@ -9,7 +9,8 @@ import PerformanceReports from '../components/reports/PerformanceReports.jsx'
 import InvoicesTable from '../components/tables/InvoicesTable.jsx'
 import { useRetailDataset, useSalesAnalytics } from '../hooks/useSalesAnalytics.js'
 import { useSavedFilters } from '../hooks/useSavedFilters.js'
-import { calculateAnalytics } from '../utils/analyticsCalculations.js'
+import { calculateAnalytics, calculateComparisonMetrics } from '../utils/analyticsCalculations.js'
+import { getPreviousPeriod } from '../utils/dateUtils.js'
 import { exportInvoicesCSV } from '../utils/exportCSV.js'
 
 const SalesCharts = lazy(() => import('../components/charts/SalesCharts.jsx'))
@@ -33,6 +34,9 @@ export default function Dashboard() {
   const loading = !sales.data && !error
   const hasResults = Boolean(analytics?.invoices.length)
   const overview = page.id === 'overview'
+  const previousPeriod = overview && hasResults ? getPreviousPeriod(period, bounds) : null
+  const comparison = useSalesAnalytics(dataset.dataset, previousPeriod, false)
+  const previous = useMemo(() => comparison.data ? calculateComparisonMetrics(comparison.data, market) : null, [comparison.data, market])
 
   useEffect(() => {
     const navigate = () => {
@@ -48,7 +52,12 @@ export default function Dashboard() {
     <DateFilters key={bounds?.end ?? 'unavailable'} bounds={bounds} period={period} defaults={defaults} markets={sales.data?.markets} onApply={apply} onReset={reset} />
     {error && <DataState status="error" error={error} onRetry={dataset.error ? dataset.retry : sales.retry} />}
     {loading && <DataState status="loading" />}
-    {overview && <MetricCards analytics={analytics} loading={loading} />}
+    {overview && <>
+      <MetricCards analytics={analytics} loading={loading} previous={previous} previousPeriod={previousPeriod} />
+      {previousPeriod && !previous && <div className="comparison-status" role="status">
+        {comparison.error ? <><span>Could not load the prior-period comparison.</span><button className="text-button" type="button" onClick={comparison.retry}>Retry comparison</button></> : 'Loading prior-period comparison…'}
+      </div>}
+    </>}
     {analytics && !hasResults && <DataState status="empty" />}
     {hasResults && <>
       {overview && <SalesSummary analytics={analytics} />}

@@ -6,9 +6,8 @@ function getGroup(groups, key, initial) {
   return groups.get(key)
 }
 
-function prepareInvoices(rows, period, previousPeriod) {
-  const current = new Map()
-  const previous = new Map()
+export function prepareRetailData(rows, period, includeLines) {
+  const groups = new Map()
 
   for (const row of rows) {
     const date = row.InvoiceDate?.slice(0, 10)
@@ -17,32 +16,24 @@ function prepareInvoices(rows, period, previousPeriod) {
     if (!id || !date || typeof row.Price !== 'number' || !Number.isFinite(row.Price) || !Number.isSafeInteger(quantity)) {
       throw new Error('The retail data contains an invalid invoice line.')
     }
-    const inPeriod = date >= period.start && date <= period.end
-    const inPrevious = previousPeriod && date >= previousPeriod.start && date <= previousPeriod.end
-    if (!inPeriod && !inPrevious) continue
+    if (date < period.start || date > period.end) continue
 
     const amount = row.Price * quantity
     const pence = Math.sign(amount) * Math.round(Math.abs(amount) * 100)
-    const groups = inPeriod ? current : previous
     const invoice = getGroup(groups, id, {
       id, date, customerId: row['Customer ID'], country: row.Country?.trim() || 'Unknown market', pence: 0, lines: [],
     })
     invoice.pence += pence
-    if (inPeriod) invoice.lines.push({ code: row.StockCode, name: row.Description?.trim(), pence, quantity })
+    if (includeLines) invoice.lines.push({ code: row.StockCode, name: row.Description?.trim(), pence, quantity })
   }
 
-  const finish = groups => [...groups.values()].map(invoice => {
+  const invoices = [...groups.values()].map(invoice => {
     const type = /^C/i.test(invoice.id) || invoice.pence < 0 ? 'Credit / cancellation' : invoice.pence > 0 ? 'Sale' : 'Other'
     return { ...invoice, type, revenue: invoice.pence / 100, customer: invoice.customerId == null ? 'Unidentified' : String(invoice.customerId) }
   })
 
-  return { current: finish(current), previous: finish(previous) }
-}
-
-export function prepareRetailData(rows, period, previousPeriod) {
-  const { current, previous } = prepareInvoices(rows, period, previousPeriod)
-  const markets = [...new Set([...current, ...previous].map(invoice => invoice.country))].sort()
-  return { current, previous, previousPeriod, markets }
+  const markets = [...new Set(invoices.map(invoice => invoice.country))].sort()
+  return { invoices, markets }
 }
 
 function metricsFor(invoices) {
@@ -68,6 +59,14 @@ function metricsFor(invoices) {
   }
 }
 
+function filterByMarket(invoices, market) {
+  return market ? invoices.filter(invoice => invoice.country === market) : invoices
+}
+
+export function calculateComparisonMetrics(data, market) {
+  return metricsFor(filterByMarket(data.invoices, market))
+}
+
 function reportingBuckets({ start, end }) {
   const days = (Date.parse(end) - Date.parse(start)) / 86400000 + 1
   const scale = days > 112 ? 'month' : days > 31 ? 'week' : 'day'
@@ -85,9 +84,7 @@ const rank = groups => [...groups.values()].sort((a, b) => b.pence - a.pence || 
   .map(row => ({ ...row, revenue: row.pence / 100 }))
 
 export function calculateAnalytics(data, period) {
-  const market = invoice => !period.market || invoice.country === period.market
-  const invoices = data.current.filter(market)
-  const previous = data.previous.filter(market)
+  const invoices = filterByMarket(data.invoices, period.market)
   const { scale, buckets, byDay } = reportingBuckets(period)
   const countries = new Map()
   const products = new Map()
@@ -129,8 +126,6 @@ export function calculateAnalytics(data, period) {
 
   return {
     ...metricsFor(invoices),
-    previous: data.previousPeriod && metricsFor(previous),
-    previousPeriod: data.previousPeriod,
     invoices, scale,
     timeline: [...buckets.values()].map(bucket => ({ ...bucket, revenue: bucket.pence / 100 })),
     invoiceMix: [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),

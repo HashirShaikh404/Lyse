@@ -61,10 +61,6 @@ export default function Workspace({ page, period, bounds, onExport, children }) 
             </a>
           ))}
         </nav>
-        <div className="sidebar-source">
-          <div className="source-icon"><Database size={17} aria-hidden="true" /></div>
-          <div><strong>UK Retail</strong><span>Historical transactions</span></div>
-        </div>
       </aside>
       <div className="work-area" inert={menuOpen || undefined}>
         <header className="topbar">

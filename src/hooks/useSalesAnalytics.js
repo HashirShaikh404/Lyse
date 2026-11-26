@@ -18,7 +18,7 @@ export function useRetailDataset() {
   return { ...(result?.attempt === attempt ? result : null), retry: () => setAttempt(attempt + 1) }
 }
 
-export function useSalesAnalytics(dataset, period) {
+export function useSalesAnalytics(dataset, period, includeLines = true) {
   const [attempt, setAttempt] = useState(0)
   const [result, setResult] = useState(null)
   const start = period?.start
@@ -27,15 +27,15 @@ export function useSalesAnalytics(dataset, period) {
   useEffect(() => {
     if (!dataset || !start || !end) return
     let active = true
-    getRetailRows(dataset, start, end)
-      .then(({ rows, previousPeriod }) => {
-        if (active) setResult({ dataset, start, end, attempt, data: prepareRetailData(rows, { start, end }, previousPeriod) })
+    getRetailRows(dataset, start, end, includeLines)
+      .then(rows => {
+        if (active) setResult({ dataset, start, end, attempt, data: prepareRetailData(rows, { start, end }, includeLines) })
       })
       .catch(error => {
         if (active) setResult({ dataset, start, end, attempt, error: error.message })
       })
     return () => { active = false }
-  }, [dataset, start, end, attempt])
+  }, [dataset, start, end, attempt, includeLines])
 
   const current = result?.dataset === dataset && result?.start === start && result?.end === end && result?.attempt === attempt ? result : null
   return { ...current, retry: () => setAttempt(attempt + 1) }

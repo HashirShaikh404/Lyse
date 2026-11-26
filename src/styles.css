@@ -47,11 +47,6 @@ svg { flex-shrink: 0; }
 .sidebar nav a[aria-current='page'] { background: #253b68; border-color: #3c5380; color: #fff; }
 .sidebar nav a[aria-current='page'] svg { color: #9bb4ff; }
 .sidebar :focus-visible { outline-color: #a1b9ff; }
-.sidebar-source { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 13px 10px; border-top: 1px solid #ffffff25; }
-.sidebar-source strong, .sidebar-source span { display: block; }
-.sidebar-source strong { font-size: .875rem; }
-.sidebar-source span { color: #bcc9e0; font-size: .75rem; }
-.source-icon { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 8px; color: #a7bdf8; background: #263858; }
 .sidebar .close-menu, .topbar .open-menu, .overlay { display: none; }
 
 .work-area { margin-left: var(--sidebar-width); min-width: 0; overflow-x: clip; }
@@ -108,6 +103,7 @@ h1 { font-size: clamp(1.8rem, 3vw, 2.3rem); line-height: 1.18; font-weight: 730;
 .metric p { margin-top: 7px; color: var(--muted); font-size: .8125rem; }
 .metric .metric-comparison { margin-top: 5px; }
 .metric-comparison strong { color: var(--accent-hover); font-variant-numeric: tabular-nums; }
+.comparison-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -12px 0 12px; color: var(--muted); font-size: .875rem; }
 .skeleton { display: inline-block; vertical-align: middle; background: #e5ebf5; border-radius: 5px; animation: pulse 1.35s ease-in-out infinite alternate; }
 .metric-skeleton { width: 65%; height: .95em; }
 @keyframes pulse { to { opacity: .55; } }
