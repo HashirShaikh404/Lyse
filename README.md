@@ -3,6 +3,8 @@
 
 Lyse is a corporate sales analytics and reporting workspace built with React, Vite, and Recharts. It lets a sales manager review performance, drill into invoices, and export the selected period.
 
+Overview shows the executive KPIs and net sales breakdown. Sales Analytics contains the charts, Performance Reports contains the rankings, and Invoices contains the searchable transaction table. The reporting filters apply across all four views.
+
 ## Run locally
 
 Use Node.js 20.19+ on the 20.x release line or Node.js 22.12+.

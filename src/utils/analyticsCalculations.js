@@ -58,7 +58,14 @@ function metricsFor(invoices) {
       if (invoice.customerId != null) customers.add(invoice.customerId)
     }
   }
-  return { revenue: net / 100, orderCount: count, customerCount: customers.size, averageOrderValue: count ? sales / count / 100 : 0 }
+  return {
+    revenue: net / 100,
+    salesInvoiceValue: sales / 100,
+    adjustments: (net - sales) / 100,
+    orderCount: count,
+    customerCount: customers.size,
+    averageOrderValue: count ? sales / count / 100 : 0,
+  }
 }
 
 function reportingBuckets({ start, end }) {

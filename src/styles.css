@@ -125,9 +125,12 @@ h1 { font-size: clamp(1.8rem, 3vw, 2.3rem); line-height: 1.18; font-weight: 730;
 .empty-state p { color: var(--muted); margin-top: 4px; }
 
 .dashboard-section { margin-top: 23px; }
-.section-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 10px; }
-.section-heading h2 { font-size: 1.16rem; font-weight: 720; letter-spacing: -.02em; }
-.section-heading span { color: var(--muted); font-size: .8125rem; }
+.sales-summary { max-width: 640px; padding: 16px; }
+.sales-summary h2 { font-size: 1rem; }
+.sales-summary dl { margin: 9px 0 0; }
+.sales-summary dl div { display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; padding: 9px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: .875rem; }
+.sales-summary dl div:last-child { border-bottom: 0; padding-bottom: 0; color: var(--ink); font-weight: 700; }
+.sales-summary dd { margin: 0; font-variant-numeric: tabular-nums; }
 .chart-grid { display: grid; grid-template-columns: minmax(0, 1.48fr) minmax(0, 1fr); align-items: start; gap: 15px; }
 .chart-grid > :nth-child(-n+2) { align-self: stretch; }
 .chart-loading { min-height: 285px; display: grid; place-items: center; color: var(--muted); }

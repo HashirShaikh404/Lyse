@@ -7,14 +7,13 @@ const reports = [
   { key: 'credits', label: 'Credits and cancellations', description: 'Credit notes ranked by total credit value', columns: [['name', 'Market'], ['count', 'Credit invoices'], ['revenue', 'Credit value']] },
 ]
 
-export default function PerformanceReports({ analytics, showHeading = true }) {
+export default function PerformanceReports({ analytics }) {
   const [report, setReport] = useState(reports[0])
   const [expanded, setExpanded] = useState(false)
   const rows = analytics[report.key]
   const visible = expanded ? rows : rows.slice(0, 8)
 
   return <section className="dashboard-section" aria-label="Performance reports">
-    {showHeading && <div className="section-heading"><h2>Performance reports</h2></div>}
     <div className="panel table-panel">
       <div className="report-tabs" role="group" aria-label="Choose a performance report">
         {reports.map(item => <button type="button" key={item.key} aria-pressed={item === report} onClick={() => {

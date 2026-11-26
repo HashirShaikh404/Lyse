@@ -7,7 +7,7 @@ const columns = [['id', 'Invoice ID'], ['date', 'Invoice date'], ['customer', 'C
 const pageSize = 10
 const collator = new Intl.Collator('en', { sensitivity: 'base', numeric: true })
 
-export default function InvoicesTable({ invoices, showHeading = true }) {
+export default function InvoicesTable({ invoices }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState({ key: 'date', direction: 'descending' })
   const [page, setPage] = useState(1)
@@ -34,7 +34,6 @@ export default function InvoicesTable({ invoices, showHeading = true }) {
   }
 
   return <section className="dashboard-section" aria-label="Invoice records">
-    {showHeading && <div className="section-heading"><h2>Invoice detail</h2></div>}
     <div className="panel table-panel">
       <div className="orders-toolbar">
         <label className="order-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search invoices</span><input type="search" placeholder="Search invoices…" value={search} onChange={event => {

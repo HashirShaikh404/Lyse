@@ -93,9 +93,8 @@ function MarketChart({ countries }) {
   </ChartCard>
 }
 
-export default function SalesCharts({ analytics, showHeading = true }) {
+export default function SalesCharts({ analytics }) {
   return <section className="dashboard-section" aria-label="Sales analytics">
-    {showHeading && <div className="section-heading"><h2>Sales analytics</h2><span>All amounts in GBP</span></div>}
     <div className="chart-grid">
       <TrendChart data={analytics.timeline} scale={analytics.scale} measure="revenue" />
       <TrendChart data={analytics.timeline} scale={analytics.scale} measure="orders" />

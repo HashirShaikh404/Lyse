@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import Workspace, { pages } from '../components/layout/Workspace.jsx'
 import DateFilters from '../components/filters/DateFilters.jsx'
 import MetricCards from '../components/dashboard/MetricCards.jsx'
+import SalesSummary from '../components/dashboard/SalesSummary.jsx'
 import DataState from '../components/common/DataState.jsx'
 import PerformanceReports from '../components/reports/PerformanceReports.jsx'
 import InvoicesTable from '../components/tables/InvoicesTable.jsx'
@@ -50,9 +51,10 @@ export default function Dashboard() {
     {overview && <MetricCards analytics={analytics} loading={loading} />}
     {analytics && !hasResults && <DataState status="empty" />}
     {hasResults && <>
-      {(overview || page.id === 'sales') && <Suspense fallback={<div className="panel chart-loading" role="status">Loading charts…</div>}><SalesCharts analytics={analytics} showHeading={overview} /></Suspense>}
-      {(overview || page.id === 'reports') && <PerformanceReports analytics={analytics} showHeading={overview} />}
-      {(overview || page.id === 'invoices') && <InvoicesTable key={`${start}:${end}:${market}`} invoices={analytics.invoices} showHeading={overview} />}
+      {overview && <SalesSummary analytics={analytics} />}
+      {page.id === 'sales' && <Suspense fallback={<div className="panel chart-loading" role="status">Loading charts…</div>}><SalesCharts analytics={analytics} /></Suspense>}
+      {page.id === 'reports' && <PerformanceReports analytics={analytics} />}
+      {page.id === 'invoices' && <InvoicesTable key={`${start}:${end}:${market}`} invoices={analytics.invoices} />}
     </>}
   </Workspace>
 }
